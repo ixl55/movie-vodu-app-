@@ -1,224 +1,96 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, StatusBar, BackHandler, Linking } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, StatusBar, BackHandler, Linking, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const URL = 'https://movie.vodu.me/index.php';
-const USER_AGENT = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.165 Mobile Safari/537.36';
-
-const INJECTED_JS = `
-  (function() {
-    if (!window.__webviewPatched) {
-      window.__webviewPatched = true;
-      document.addEventListener('touchstart', function(){}, {passive: true});
-      var style = document.createElement('style');
-      style.textContent = 'body { -webkit-text-size-adjust: 100%; }';
-      document.head.appendChild(style);
-    }
-  })();
-  true;
-`;
+const UA = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.165 Mobile Safari/537.36';
 
 export default function App() {
-  const webRef = useRef(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState(URL);
+  const ref = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [canBack, setCanBack] = useState(false);
+  const [canFwd, setCanFwd] = useState(false);
+  const [url, setUrl] = useState(URL);
+  const [err, setErr] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  React.useEffect(() => {
+    const h = () => { if (ref.current && canBack) { ref.current.goBack(); return true } return false };
+    BackHandler.addEventListener('hardwareBackPress', h);
+    return () => BackHandler.removeEventListener('hardwareBackPress', h);
+  }, [canBack]);
 
-  useEffect(() => {
-    const onBack = () => {
-      if (webRef.current && canGoBack) {
-        webRef.current.goBack();
-        return true;
-      }
-      return false;
-    };
-    BackHandler.addEventListener('hardwareBackPress', onBack);
-    return () => BackHandler.removeEventListener('hardwareBackPress', onBack);
-  }, [canGoBack]);
-
-  const onNavigationStateChange = (navState) => {
-    setCanGoBack(navState.canGoBack);
-    setCanGoForward(navState.canGoForward);
-    setCurrentUrl(navState.url);
-    if (navState.loading === false) {
-      setError(null);
-    }
-  };
-
-  const handleError = () => {
-    setError('تعذر تحميل الموقع');
-  };
-
-  const handleRetry = () => {
-    setError(null);
-    setLoading(true);
-    webRef.current?.reload();
-    setTimeout(() => setLoading(false), 800);
-  };
-
-  if (loading) {
+  if (err) {
     return (
-      <SafeAreaView style={styles.splashContainer}>
+      <View style={s.c}>
         <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
-        <Text style={styles.splashTitle}>Movie Vodu</Text>
-        <ActivityIndicator size="large" color="#e94560" style={{ marginTop: 20 }} />
-        <Text style={styles.splashSub}>جاري التحميل...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.splashContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
-        <Text style={styles.splashTitle}>Movie Vodu</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
-          <Text style={styles.retryText}>إعادة المحاولة</Text>
+        <Text style={s.er}>تعذر الاتصال بالموقع</Text>
+        <TouchableOpacity style={s.rb} onPress={() => { setErr(false); ref.current?.reload() }}>
+          <Text style={s.rt}>إعادة المحاولة</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <View style={s.c}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
       <WebView
-        ref={webRef}
+        ref={ref}
         source={{ uri: URL }}
-        style={styles.webview}
-        userAgent={USER_AGENT}
-        onNavigationStateChange={onNavigationStateChange}
-        onError={handleError}
-        onHttpError={handleError}
+        style={s.wv}
+        userAgent={UA}
         javaScriptEnabled
         domStorageEnabled
         allowFileAccess
         allowUniversalAccessFromFileURLs
         mixedContentMode="always"
-        allowActivityStreaming
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         setSupportMultipleWindows={false}
-        setBuiltInZoomControls={false}
-        setDisplayZoomControls={false}
-        textInteractionEnabled
-        overScrollMode="never"
-        showsVerticalScrollIndicator
-        bounces={false}
-        injectedJavaScript={INJECTED_JS}
-        injectedJavaScriptBeforeContentLoaded={INJECTED_JS}
         allowsBackForwardNavigationGestures
-        onShouldStartLoadWithRequest={(request) => {
-          if (['intent://', 'tel:', 'mailto:', 'whatsapp://', 'tg://', 'viber://'].some((p) => request.url.startsWith(p))) {
-            Linking.openURL(request.url).catch(() => {});
+        onLoadProgress={({ nativeEvent: { progress: p } }) => setProgress(p)}
+        onNavigationStateChange={(s) => { setCanBack(s.canGoBack); setCanFwd(s.canGoForward); setUrl(s.url) }}
+        onError={() => setErr(true)}
+        onHttpError={() => setErr(true)}
+        onShouldStartLoadWithRequest={(r) => {
+          if (['intent:', 'tel:', 'mailto:', 'whatsapp:', 'tg:', 'viber:'].some(p => r.url.startsWith(p))) {
+            Linking.openURL(r.url).catch(() => {});
             return false;
           }
           return true;
         }}
       />
-      <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navBtn} onPress={() => webRef.current?.goBack()} disabled={!canGoBack}>
-          <Text style={[styles.navIcon, !canGoBack && styles.navBtnDisabled]}>◀</Text>
+      {progress > 0 && progress < 1 && (
+        <View style={s.pb}><View style={[s.pf, { width: `${progress * 100}%` }]} /></View>
+      )}
+      <View style={s.nb}>
+        <TouchableOpacity style={s.nbtn} onPress={() => ref.current?.goBack()} disabled={!canBack}>
+          <Text style={[s.ni, !canBack && s.nd]}>◀</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navBtn} onPress={() => webRef.current?.goForward()} disabled={!canGoForward}>
-          <Text style={[styles.navIcon, !canGoForward && styles.navBtnDisabled]}>▶</Text>
+        <TouchableOpacity style={s.nbtn} onPress={() => ref.current?.goForward()} disabled={!canFwd}>
+          <Text style={[s.ni, !canFwd && s.nd]}>▶</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navBtn} onPress={handleRetry}>
-          <Text style={styles.navIcon}>⟳</Text>
+        <TouchableOpacity style={s.nbtn} onPress={() => ref.current?.reload()}>
+          <Text style={s.ni}>⟳</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navBtn} onPress={() => Linking.openURL(currentUrl).catch(() => {})}>
-          <Text style={styles.navIcon}>↗</Text>
+        <TouchableOpacity style={s.nbtn} onPress={() => Linking.openURL(url).catch(() => {})}>
+          <Text style={s.ni}>↗</Text>
         </TouchableOpacity>
-        <View style={styles.urlContainer}>
-          <Text style={styles.urlText} numberOfLines={1}>{currentUrl}</Text>
-        </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f0f23',
-  },
-  splashContainer: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  splashTitle: {
-    color: '#e94560',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  splashSub: {
-    color: '#aaa',
-    fontSize: 16,
-    marginTop: 10,
-  },
-  errorText: {
-    color: '#e94560',
-    fontSize: 16,
-    marginTop: 20,
-    marginHorizontal: 20,
-    textAlign: 'center',
-  },
-  retryBtn: {
-    marginTop: 20,
-    backgroundColor: '#e94560',
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: '#0f0f23',
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  navBtn: {
-    padding: 10,
-  },
-  navIcon: {
-    color: '#e94560',
-    fontSize: 18,
-  },
-  navBtnDisabled: {
-    color: '#555',
-  },
-  urlContainer: {
-    flex: 1,
-    backgroundColor: '#0f0f23',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginLeft: 6,
-  },
-  urlText: {
-    color: '#888',
-    fontSize: 11,
-  },
+const s = StyleSheet.create({
+  c: { flex: 1, backgroundColor: '#0f0f23', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  wv: { flex: 1, backgroundColor: '#0f0f23' },
+  pb: { height: 3, backgroundColor: '#333' },
+  pf: { height: '100%', backgroundColor: '#e94560' },
+  nb: { flexDirection: 'row', justifyContent: 'space-evenly', backgroundColor: '#1a1a2e', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#333' },
+  nbtn: { padding: 10 },
+  ni: { color: '#e94560', fontSize: 18 },
+  nd: { color: '#555' },
+  er: { color: '#e94560', fontSize: 18, textAlign: 'center', marginTop: 100 },
+  rb: { backgroundColor: '#e94560', padding: 14, borderRadius: 8, marginHorizontal: 40, marginTop: 20, alignItems: 'center' },
+  rt: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
