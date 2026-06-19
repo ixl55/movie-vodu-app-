@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "ixl55",
     "name": "Movie Vodu",
     "slug": "movie-vodu-app",
     "version": "1.0.0",
@@ -11,6 +12,11 @@
     },
     "android": {
       "package": "com.movievodu.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bd9f70f5-5ab0-48b2-96c7-f67ba10f40ba"
+      }
     }
   }
 }
