@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Movie Vodu",
+    "slug": "movie-vodu-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.movievodu.app"
+    },
+    "android": {
+      "package": "com.movievodu.app"
+    }
+  }
+}
