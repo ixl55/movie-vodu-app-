@@ -3,8 +3,6 @@ name: Build APK
 on:
   push:
     branches: [main, master]
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -21,25 +19,21 @@ jobs:
           distribution: 'microsoft'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: actions/setup-android@v4
-        with:
-          api-level: 35
-          build-tools: 35.0.0
-          ndk-version: 26.1.10909125
-          cmdline-tools-version: latest
-          accept-licenses: true
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
+      - name: Accept Android Licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build APK
+      - name: Build Debug APK
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon
@@ -50,50 +44,3 @@ jobs:
           name: MovieVodu-APK
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          compression-level: 0
-
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'microsoft'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: actions/setup-android@v4
-        with:
-          api-level: 35
-          build-tools: 35.0.0
-          ndk-version: 26.1.10909125
-          cmdline-tools-version: latest
-          accept-licenses: true
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Release APK
-        run: |
-          cd android
-          ./gradlew assembleRelease --no-daemon
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MovieVodu-Release-APK
-          path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          compression-level: 0
