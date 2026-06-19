@@ -9,3 +9,7 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 web-build/
+
+# EAS Build generates native code
+android/
+ios/
