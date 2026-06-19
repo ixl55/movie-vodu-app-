@@ -17,6 +17,7 @@
     "expo-keep-awake": "^56.0.3",
     "expo-splash-screen": "~0.29.0",
     "expo-status-bar": "~2.0.0",
+    "expo-system-ui": "^56.0.5",
     "react": "18.3.1",
     "react-native": "0.76.6",
     "react-native-safe-area-context": "4.14.0",

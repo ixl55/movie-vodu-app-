@@ -9,7 +9,6 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 web-build/
-
 # EAS Build generates native code
-android/
-ios/
+# android/   # commented out - we track android/ for GitHub Actions
+# ios/
