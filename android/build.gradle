@@ -23,6 +23,9 @@ buildscript {
 
 apply plugin: "com.facebook.react.rootproject"
 
+// Ensure kotlinVersion is accessible at project ext level
+ext.kotlinVersion = "1.9.25"
+
 allprojects {
     repositories {
         maven {
