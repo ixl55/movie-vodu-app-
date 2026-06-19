@@ -33,6 +33,7 @@ jobs:
           cd android
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --warning-mode all
 
       - name: Upload APK
