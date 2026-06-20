@@ -22,32 +22,27 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Ensure UWP and C++ workloads
+      - name: Patch RNW CLI for VS 2026 support
         run: |
-          $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-          $vsInstaller = Join-Path $vsPath "..\..\vs_installer.exe"
-          
-          # Check what workloads are installed
-          $installed = & $vsInstaller modify --channelId VisualStudio.17.Release --productId Microsoft.VisualStudio.Product.Community --quiet --norestart --installWhileDownloading --list 2>&1
-          Write-Output "--- Installed workloads ---"
-          Write-Output $installed
-          
-          # Install UWP and C++ workloads if not present
-          & $vsInstaller modify --channelId VisualStudio.17.Release --productId Microsoft.VisualStudio.Product.Community --quiet --norestart --installWhileDownloading --add Microsoft.VisualStudio.Workload.Universal --add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended
+          $file = "node_modules\@react-native-windows\cli\lib-commonjs\utils\msbuildtools.js"
+          if (Test-Path $file) {
+            (Get-Content $file) -replace "'17.11.0'", "'18.0.0'" | Set-Content $file
+            Write-Output "Patched vs version range to support VS 2026"
+          } else {
+            Write-Output "File not found, trying alternative path..."
+            $file2 = "node_modules\@react-native-community\cli-platform-windows\lib-commonjs\utils\msbuildtools.js"
+            if (Test-Path $file2) {
+              (Get-Content $file2) -replace "'17.11.0'", "'18.0.0'" | Set-Content $file2
+              Write-Output "Patched alternative path"
+            } else {
+              Write-Output "Searching for msbuildtools.js..."
+              Get-ChildItem -Recurse -Filter "msbuildtools.js" -Path "node_modules" | Select-Object FullName
+            }
+          }
         shell: powershell
-        continue-on-error: true
 
-      - name: Set up MSBuild env
-        run: |
-          $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-          $devShell = Join-Path $vsPath "Common7\Tools\vsdevcmd\core\vsdevcmdcore.bat"
-          $env:VSCMD_ARG_TGT_ARCH=x64
-          
-          # Restore NuGet
-          cmd /c "`"$devShell`" && msbuild windows\MovieVoduWin.sln /t:Restore /p:RestorePackagesConfig=true"
-          
-          # Build solution
-          cmd /c "`"$devShell`" && msbuild windows\MovieVoduWin.sln /p:Configuration=Release /p:Platform=x64 /p:AppxPackage=true"
+      - name: Build Windows App
+        run: npx --yes @react-native-community/cli run-windows --no-launch --release --logging
         shell: powershell
 
       - name: Upload App Package
