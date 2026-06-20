@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
@@ -19,25 +19,38 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install RNW dependencies (VS components)
-        run: |
-          powershell -ExecutionPolicy Bypass -File node_modules\react-native-windows\scripts\rnw-dependencies.ps1
-        shell: powershell
-
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Restore NuGet packages
+      - name: Ensure UWP and C++ workloads
         run: |
-          cd windows
-          nuget restore MovieVoduWin.sln
+          $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $vsInstaller = Join-Path $vsPath "..\..\vs_installer.exe"
+          
+          # Check what workloads are installed
+          $installed = & $vsInstaller modify --channelId VisualStudio.17.Release --productId Microsoft.VisualStudio.Product.Community --quiet --norestart --installWhileDownloading --list 2>&1
+          Write-Output "--- Installed workloads ---"
+          Write-Output $installed
+          
+          # Install UWP and C++ workloads if not present
+          & $vsInstaller modify --channelId VisualStudio.17.Release --productId Microsoft.VisualStudio.Product.Community --quiet --norestart --installWhileDownloading --add Microsoft.VisualStudio.Workload.Universal --add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended
+        shell: powershell
+        continue-on-error: true
+
+      - name: Set up MSBuild env
+        run: |
+          $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $devShell = Join-Path $vsPath "Common7\Tools\vsdevcmd\core\vsdevcmdcore.bat"
+          $env:VSCMD_ARG_TGT_ARCH=x64
+          
+          # Restore NuGet
+          cmd /c "`"$devShell`" && msbuild windows\MovieVoduWin.sln /t:Restore /p:RestorePackagesConfig=true"
+          
+          # Build solution
+          cmd /c "`"$devShell`" && msbuild windows\MovieVoduWin.sln /p:Configuration=Release /p:Platform=x64 /p:AppxPackage=true"
         shell: powershell
 
-      - name: Build Windows App
-        run: npx --yes react-native run-windows --no-launch --release --logging
-        shell: powershell
-
-      - name: Upload MSIX Bundle
+      - name: Upload App Package
         uses: actions/upload-artifact@v4
         with:
           name: MovieVodu-Windows
