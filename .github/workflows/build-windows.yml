@@ -19,27 +19,17 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Install VS 2022 Build Tools (UWP + C++)
+        run: |
+          choco install visualstudio2022buildtools --package-parameters "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.Universal --add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --add Microsoft.VisualStudio.Component.Windows10SDK.20348" -y
+          echo "VS installed, checking..."
+          $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -version "[17.0,18.0)" -property installationPath
+          echo "VS 2022 Path: $vsPath"
+        shell: powershell
+        continue-on-error: true
+
       - name: Install npm dependencies
         run: npm ci
-
-      - name: Patch RNW CLI for VS 2026 support
-        run: |
-          $file = "node_modules\@react-native-windows\cli\lib-commonjs\utils\msbuildtools.js"
-          if (Test-Path $file) {
-            (Get-Content $file) -replace "'17.11.0'", "'18.0.0'" | Set-Content $file
-            Write-Output "Patched vs version range to support VS 2026"
-          } else {
-            Write-Output "File not found, trying alternative path..."
-            $file2 = "node_modules\@react-native-community\cli-platform-windows\lib-commonjs\utils\msbuildtools.js"
-            if (Test-Path $file2) {
-              (Get-Content $file2) -replace "'17.11.0'", "'18.0.0'" | Set-Content $file2
-              Write-Output "Patched alternative path"
-            } else {
-              Write-Output "Searching for msbuildtools.js..."
-              Get-ChildItem -Recurse -Filter "msbuildtools.js" -Path "node_modules" | Select-Object FullName
-            }
-          }
-        shell: powershell
 
       - name: Build Windows App
         run: npx --yes @react-native-community/cli run-windows --no-launch --release --logging
