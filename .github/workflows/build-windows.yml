@@ -19,16 +19,23 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
+      - name: Install RNW dependencies (VS components)
+        run: |
+          powershell -ExecutionPolicy Bypass -File node_modules\react-native-windows\scripts\rnw-dependencies.ps1
+        shell: powershell
+
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Restore NuGet packages
         run: |
           cd windows
           nuget restore MovieVoduWin.sln
+        shell: powershell
 
       - name: Build Windows App
-        run: npx react-native run-windows --no-launch --release --logging
+        run: npx --yes react-native run-windows --no-launch --release --logging
+        shell: powershell
 
       - name: Upload MSIX Bundle
         uses: actions/upload-artifact@v4
